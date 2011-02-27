@@ -51,6 +51,9 @@ function sp_init($env = null, $base_dir = null) {
 function sp_modules($reset = false) {
     static $modules = null;
     if ($modules === null || $reset) {
+        if (!$reset && $modules = sp_appcache_fetch('sp_modules')) {
+            return $modules;
+        }
         $modules = array ();
         foreach (glob(SP_BASE . "/modules/*") as $dir) {
             $module = basename($dir);
@@ -60,6 +63,7 @@ function sp_modules($reset = false) {
             }
             $modules[$module] = $info;
         }
+        sp_appcache_store('sp_modules', $modules);
     }
     return $modules;
 }
@@ -308,6 +312,37 @@ function sp_view_render($module, $view, array $params = array ()) {
 }
 
 /**
+ * Store a value to the appcache.
+ * 
+ * The value will be automatically serialized. You can delete a value by setting null.
+ * 
+ * @param string $key
+ * @param mixed $value
+ * @param int $ttl
+ */
+function sp_appcache_store($key, $value, $ttl = 0) {
+    $key = _sp_appcache_key($key);
+    if ($value === null) {
+        apc_delete($key);
+    } else {
+        apc_store($key, serialize($value), $ttl);
+    }
+}
+
+/**
+ * Fetch a value from the appcache.
+ * @param string $key
+ * @return mixed|null
+ */
+function sp_appcache_fetch($key) {
+    $key = _sp_appcache_key($key);
+    $value = apc_fetch($key);
+    if ($value) {
+        return unserialize($value);
+    }
+}
+
+/**
  * Get all listeners for an event.
  * @param string $event
  * @param bool $reset
@@ -335,6 +370,9 @@ function _sp_listeners($event, $reset = false) {
 function _sp_config_all($reset = false) {
     static $config = null;
     if ($config === null || $reset) {
+        if (!$reset && $config = sp_appcache_fetch('_sp_config_all')) {
+            return $config;
+        }
         $config = array ();
         if (file_exists($configPath = SP_BASE . "/config/config.yaml")) {
             $configData = file_get_contents($configPath);
@@ -343,6 +381,7 @@ function _sp_config_all($reset = false) {
                 $config = $yaml;
             }
         }
+        sp_appcache_store('_sp_config_all', $config);
     }
     return $config;
 }
@@ -383,4 +422,13 @@ function _sp_current_request() {
     $request->post = $_POST;
     $request->method = $_SERVER['REQUEST_METHOD'];
     return $request;
+}
+
+/**
+ * Rewrite a key to use it in APC.
+ * @param string $key
+ * @return string
+ */
+function _sp_appcache_key($key) {
+    return "sp_" . md5("sputnik{$key}");
 }
