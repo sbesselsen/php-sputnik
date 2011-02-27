@@ -1,0 +1,10 @@
+Sputnik, a PHP framework built for scalability and performance
+---
+
+Sputnik achieves these goals by adhering to the following principles:
+
+- Use extensions instead of PHP libraries;
+- Rely on specific infrastructure (like APC) instead of adding layers of abstraction;
+- Use as little include files as possible.
+
+Sputnik is created and maintained by ExtendD (www.extendd.nl).
