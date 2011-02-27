@@ -101,26 +101,31 @@ function sp_broadcast($event) {
 }
 
 /**
- * Include a file from a module and return the output.
+ * Require a file from a module.
  * @param string $module
  * @param string $file
- * @return mixed
+ * @param bool $check_if_exists     Check if the file exists before we call require_once? Defaults to false.
+ * @return bool Success.
  */
-function sp_module_require($module, $file) {
-    return sp_require("modules/{$module}/{$file}");
+function sp_module_require($module, $file, $check_if_exists = false) {
+    return sp_require("modules/{$module}/{$file}", $check_if_exists);
 }
 
 /**
  * Include a file and return the output.
  * @param string $file
- * @param bool $from_base    Evaluate the path from the base_path? Defaults to true.
- * @return mixed
+ * @param bool $check_if_exists     Check if the file exists before we call require_once? Defaults to false.
+ * @return bool Success.
  */
-function sp_require($path, $from_base = true) {
-    if ($from_base) {
+function sp_require($path, $check_if_exists = false) {
+    if (substr($path, 0, 1) != '/') {
         $path = SP_BASE . '/' . $path;
     }
-    return include $path;
+    if ($check_if_exists && !file_exists($path)) {
+        return false;
+    }
+    require_once $path;
+    return true;
 }
 
 /**
@@ -152,9 +157,14 @@ function sp_run_request($request = null) {
  */
 function sp_dispatch($request) {
     $params = $request->params;
-    sp_module_require($params['module'], $params['controller'] . '_controller.php');
-    $f = "{$params['module']}_page_{$params['controller']}_{$params['action']}";
-    return $f($request);
+    if (sp_module_require($params['module'], $params['controller'] . '_controller.php', true)) {
+        $f = "{$params['module']}_page_{$params['controller']}_{$params['action']}";
+        if (is_callable($f)) {
+            $f($request);
+            return;
+        }
+    }
+    sp_error_404($request);
 }
 
 /**
@@ -348,6 +358,16 @@ function sp_appcache_fetch($key) {
     $value = apc_fetch($key);
     if ($value) {
         return unserialize($value);
+    }
+}
+
+function sp_error_404($request) {
+    $obj = new stdClass;
+    $obj->request = $request;
+    $obj->handled = false;
+    sp_broadcast('error_404', $obj);
+    if (!$obj->handled) {
+        header("HTTP/1.0 404 Not Found");
     }
 }
 
