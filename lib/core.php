@@ -361,6 +361,10 @@ function sp_appcache_fetch($key) {
     }
 }
 
+/**
+ * Handle a 404 error.
+ * @param object $request
+ */
 function sp_error_404($request) {
     $obj = new stdClass;
     $obj->request = $request;
