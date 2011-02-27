@@ -1,0 +1,19 @@
+# RENAME THIS FILE TO .htaccess.
+
+# Set your environment here. This determines which config section is loaded. It should have no other effects.
+SetEnv SP_ENV dev
+
+# Uncomment this line to disable the appcache. This is the preferred setting for development.
+# Never disable the appcache in production environments.
+#SetEnv SP_APPCACHE off
+
+AddDefaultCharset utf-8
+RewriteEngine on
+RewriteBase /
+
+# Do not rewrite if a static file is referenced
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule .* - [L]
+
+# Rewrite all other content to the bootstrapper
+RewriteRule .* index.php
