@@ -14,6 +14,9 @@ function sp_init($env = null, $base_dir = null) {
     }
     define('SP_ENV', $env);
     
+    // set the appcache flag
+    define('SP_APPCACHE', !isset ($_SERVER['SP_APPCACHE']) || $_SERVER['SP_APPCACHE'] != 'off');
+    
     // set the base directory
     if (defined('SP_BASE')) {
         throw new RuntimeException("Sputnik BASE already set");
@@ -308,7 +311,7 @@ function sp_view_get($module, $view, array $params = array ()) {
  */
 function sp_view_render($module, $view, array $params = array ()) {
     extract($params, EXTR_SKIP);
-    include SP_BASE . "/{$module}/view/$view.phtml";
+    include SP_BASE . "/modules/{$module}/view/$view.phtml";
 }
 
 /**
@@ -321,6 +324,9 @@ function sp_view_render($module, $view, array $params = array ()) {
  * @param int $ttl
  */
 function sp_appcache_store($key, $value, $ttl = 0) {
+    if (!SP_APPCACHE) {
+        return;
+    }
     $key = _sp_appcache_key($key);
     if ($value === null) {
         apc_delete($key);
@@ -335,6 +341,9 @@ function sp_appcache_store($key, $value, $ttl = 0) {
  * @return mixed|null
  */
 function sp_appcache_fetch($key) {
+    if (!SP_APPCACHE) {
+        return null;
+    }
     $key = _sp_appcache_key($key);
     $value = apc_fetch($key);
     if ($value) {
