@@ -407,7 +407,7 @@ function _sp_config_all($reset = false) {
             return $config;
         }
         $config = array ();
-        if (file_exists($configPath = SP_BASE . "/config/config.yaml")) {
+        if (file_exists($configPath = SP_BASE . "/config/config.yml")) {
             $configData = file_get_contents($configPath);
             $yaml = yaml_parse($configData);
             if (is_array($yaml)) {
