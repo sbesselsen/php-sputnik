@@ -64,6 +64,9 @@ function sp_modules($reset = false) {
             if (file_exists($loaderPath = "{$dir}/module.php")) {
                 $info['loader'] = $loaderPath;
             }
+            if (file_exists($viewHelperPath = "{$dir}/view/helpers.php")) {
+                $info['view_helpers'] = $viewHelperPath;
+            }
             $modules[$module] = $info;
         }
         sp_appcache_store('sp_modules', $modules);
@@ -157,7 +160,7 @@ function sp_run_request($request = null) {
  */
 function sp_dispatch($request) {
     $params = $request->params;
-    if (sp_module_require($params['module'], $params['controller'] . '_controller.php', true)) {
+    if (sp_module_require($params['module'], "controller/{$params['controller']}.php", true)) {
         $f = "{$params['module']}_page_{$params['controller']}_{$params['action']}";
         if (is_callable($f)) {
             $f($request);
@@ -247,7 +250,7 @@ function sp_default_route($request) {
     $url = $url[0];
     
     // read the path to the controller action
-    $parts = explode('/', substr($url, 1));
+    $parts = explode('/', trim($url, '/'));
     if (!$parts[0]) {
         $parts[0] = 'core';
     }
@@ -320,6 +323,7 @@ function sp_view_get($module, $view, array $params = array ()) {
  * @param array $params
  */
 function sp_view_render($module, $view, array $params = array ()) {
+    _sp_view_include_helpers($module);
     extract($params, EXTR_SKIP);
     include SP_BASE . "/modules/{$module}/view/$view.phtml";
 }
@@ -464,4 +468,14 @@ function _sp_current_request() {
  */
 function _sp_appcache_key($key) {
     return "sp_" . md5("sputnik{$key}");
+}
+
+/**
+ * Include view helpers.
+ */
+function _sp_view_include_helpers($module) {
+    $modules = sp_modules();
+    if (isset ($modules[$module]['view_helpers'])) {
+        sp_require($modules[$module]['view_helpers']);
+    }
 }
