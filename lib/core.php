@@ -189,7 +189,7 @@ function sp_route($request = null) {
     $routes = _sp_routes();
     
     // carry out the actual routing
-    foreach ($routes as $route => $f) {
+    foreach ($routes->ordered as $route => $f) {
         $route_function = "{$f}_route";
         if ($params = $route_function($request)) {
             $request->params = $params;
@@ -201,16 +201,25 @@ function sp_route($request = null) {
 /**
  * Assemble a URL from the specified params.
  * @param array $params
+ * @param string|null       Name of the route.
  * @param bool $absolute    Generate an absolute URL? Defaults to false.
  * @return string
  */
-function sp_assemble(array $params, $absolute = false) {
+function sp_assemble(array $params, $route = null, $absolute = false) {
     $routes = _sp_routes();
     $url = null;
-    foreach ($routes as $route => $f) {
-        $assemble_function = "{$f}_assemble";
-        if ($url = $assemble_function($params)) {
-            break;
+    if ($route === null) {
+        foreach ($routes->ordered as $route => $f) {
+            $assemble_function = "{$f}_assemble";
+            if ($url = $assemble_function($params)) {
+                break;
+            }
+        }
+    } else {
+        if (isset ($routes->all[$route])) {
+            $f = $routes->all[$route];
+            $assemble_function = "{$f}_assemble";
+            $url = $assemble_function($params);
         }
     }
     if ($absolute && substr($url, 0, 1) == '/') {
@@ -260,17 +269,26 @@ function sp_default_route($request) {
     $params['action'] = array_shift($parts);
     
     // read additional params from the url
-    $urlParams = array ();
-    while ($k = array_shift($parts)) {
-        $urlParams[rawurldecode($k)] = rawurldecode(array_shift($parts));
-    }
-    $params += $urlParams;
+    $params += sp_route_decode_params($parts);
     
     // read params from get and post
     $params += $request->post;
     $params += $request->get;
     
     return $params;
+}
+
+/**
+ * Decode an array of params to key-value pairs.
+ * @param array $arr
+ * @return array
+ */
+function sp_route_decode_params(array $arr) {
+    $out = array ();
+    while ($k = array_shift($arr)) {
+        $out[rawurldecode($k)] = rawurldecode(array_shift($arr));
+    }
+    return $out;
 }
 
 /**
@@ -288,9 +306,7 @@ function sp_default_assemble(array $params) {
     unset ($params['action']);
     $url = "/{$module}/{$controller}/{$action}";
     if ($params) {
-        foreach ($params as $k => $v) {
-            $url .= '/' . rawurlencode($k) . '/' . rawurlencode($v);
-        }
+        $url .= sp_route_encode_params($params);
     } else if ($action == 'index') {
         // shorten the URL if possible
         if ($controller == 'index') {
@@ -302,6 +318,19 @@ function sp_default_assemble(array $params) {
         } else {
             $url = "/{$module}/{$controller}";
         }
+    }
+    return $url;
+}
+
+/**
+ * Encode an array of key-value pairs to a params URL.
+ * @param array $params
+ * @return string
+ */
+function sp_route_encode_params(array $params) {
+    $url = '';
+    foreach ($params as $k => $v) {
+        $url .= '/' . rawurlencode($k) . '/' . rawurlencode($v);
     }
     return $url;
 }
@@ -426,20 +455,31 @@ function _sp_config_all($reset = false) {
 /**
  * Get a list of all available routes.
  * @param bool $reset
- * @return array
+ * @return object   Object containing routes ->ordered (ordered by priority) and ->all (keyed by name).
  */
 function _sp_routes($reset = false) {
     static $routes = null;
     if ($routes === null || $reset) {
+        if (!$reset && $routes = sp_appcache_fetch('_sp_routes')) {
+            return $routes;
+        }
         // fetch all routes
         $routes_obj = new stdClass;
         $routes_obj->{'000_default'} = 'sp_default';
         sp_broadcast('routes', $routes_obj);
-        $routes = get_object_vars($routes_obj);
+        $routes_ordered = get_object_vars($routes_obj);
+        $routes_all = array ();
+        foreach ($routes_ordered as $k => $v) {
+            $routes_all[ltrim($k, '0123456789_')] = $v;
+        }
         
         // sort the routes
-        ksort($routes);
-        $routes = array_reverse($routes);
+        ksort($routes_ordered);
+        
+        $routes = new stdClass;
+        $routes->ordered = array_reverse($routes_ordered);
+        $routes->all = $routes_all;
+        sp_appcache_store('_sp_routes', $routes);
     }
     return $routes;
 }
