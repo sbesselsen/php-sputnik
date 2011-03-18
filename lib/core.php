@@ -28,14 +28,8 @@ function sp_init($env = null, $base_dir = null) {
     }
     define('SP_BASE', realpath($base_dir));
     
-    // load the config
-    $config = sp_config();
-    
-    // load all modules
-    $modules = sp_modules();
-    
-    // initialize the modules
-    foreach ($modules as $module => $info) {
+    // load and initialize the modules
+    foreach (sp_modules() as $module => $info) {
         if (isset ($info['loader'])) {
             require $info['loader'];
             $module_init = "{$module}_init";
@@ -353,24 +347,27 @@ function sp_model_load($module, $model) {
 
 /**
  * Render a view script and get the output.
+ * @param string $module
  * @param string $view
  * @param array $params
  */
 function sp_view_get($module, $view, array $params = array ()) {
     ob_start();
-    sp_view_render($view, $params);
+    sp_view_render($module, $view, $params);
     return ob_get_clean();
 }
 
 /**
  * Render a view script and output directly.
+ * @param string $module
  * @param string $view
  * @param array $params
  */
 function sp_view_render($module, $view, array $params = array ()) {
     _sp_view_include_helpers($module);
-    extract($params, EXTR_SKIP);
-    include SP_BASE . "/modules/{$module}/view/$view.phtml";
+    $__path = SP_BASE . "/modules/{$module}/view/{$view}.phtml";
+    extract($params + array ('params' => null, 'module' => null, 'view' => null));
+    include $__path;
 }
 
 /**
@@ -456,9 +453,9 @@ function _sp_config_all($reset = false) {
             return $config;
         }
         $config = array ();
-        if (file_exists($configPath = SP_BASE . "/config/config.yml")) {
-            $configData = file_get_contents($configPath);
-            $yaml = yaml_parse($configData);
+        if (file_exists($path = SP_BASE . "/config/config.yml")) {
+            $data = file_get_contents($path);
+            $yaml = yaml_parse($data);
             if (is_array($yaml)) {
                 $config = $yaml;
             }
@@ -530,6 +527,11 @@ function _sp_appcache_key($key) {
  * Include view helpers.
  */
 function _sp_view_include_helpers($module) {
+    static $loaded = array ();
+    if (isset ($loaded[$module])) {
+        return;
+    }
+    $loaded[$module] = true;
     $modules = sp_modules();
     if (isset ($modules[$module]['view_helpers'])) {
         sp_require($modules[$module]['view_helpers']);
