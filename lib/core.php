@@ -341,10 +341,13 @@ function sp_route_encode_params(array $params) {
  * @param string $model
  */
 function sp_model_load($module, $model) {
+    // load the model
     sp_module_require($module, "model/{$model}.php");
     
-    if ($backend = _sp_model_backend($module, $model)) {
-        sp_module_require($module, "model/backend/{$backend}.php");
+    // load the backend if possible
+    $config = sp_config();
+    if (isset ($config['backends'][$module][$model])) {
+        sp_module_require($module, "model/backend/{$model}/{$config['backends'][$module][$model]}.php");
     }
 }
 
@@ -520,7 +523,7 @@ function _sp_current_request() {
  * @return string
  */
 function _sp_appcache_key($key) {
-    return "sp_" . md5("sputnik{$key}");
+    return "sp_" . md5(SP_BASE . $key);
 }
 
 /**
@@ -531,25 +534,4 @@ function _sp_view_include_helpers($module) {
     if (isset ($modules[$module]['view_helpers'])) {
         sp_require($modules[$module]['view_helpers']);
     }
-}
-
-/**
- * Get the name of the backend for a model.
- * @param string $module
- * @param string $model
- * @return string|null
- */
-function _sp_model_backend($module, $model) {
-    $config = sp_config();
-    if (!isset ($config['backends'])) {
-        return null;
-    }
-    $backends = $config['backends'];
-    if (isset ($backends[$module][$model])) {
-        return $backends[$module][$model];
-    }
-    if (isset ($backends[$module]['default'])) {
-        return $backends[$module]['default'];
-    }
-    return null;
 }
