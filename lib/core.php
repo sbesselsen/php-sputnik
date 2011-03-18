@@ -341,7 +341,7 @@ function sp_model_load($module, $model) {
     // load the backend if possible
     $config = sp_config();
     if (isset ($config['backends'][$module][$model])) {
-        sp_module_require($module, "model/backend/{$model}/{$config['backends'][$module][$model]}.php");
+        sp_module_require($module, "model/_{$config['backends'][$module][$model]}/{$model}.php");
     }
 }
 
@@ -419,6 +419,14 @@ function sp_error_404($request) {
     if (!$obj->handled) {
         header("HTTP/1.0 404 Not Found");
     }
+}
+
+/**
+ * Load a Sputnik extension.
+ * @param string $extension
+ */
+function sp_extension_load($extension) {
+    sp_require("lib/sputnik/{$extension}.php");
 }
 
 /**
