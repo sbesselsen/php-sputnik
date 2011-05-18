@@ -205,7 +205,7 @@ function sp_assemble(array $params, $route = null, $absolute = false) {
     if ($route === null) {
         foreach ($routes->ordered as $route => $f) {
             $assemble_function = "{$f}_assemble";
-            if ($url = $assemble_function($params)) {
+            if ($url = $assemble_function($params, $absolute)) {
                 break;
             }
         }
@@ -213,7 +213,7 @@ function sp_assemble(array $params, $route = null, $absolute = false) {
         if (isset ($routes->all[$route])) {
             $f = $routes->all[$route];
             $assemble_function = "{$f}_assemble";
-            $url = $assemble_function($params);
+            $url = $assemble_function($params, $absolute);
         }
     }
     if ($absolute && substr($url, 0, 1) == '/') {
