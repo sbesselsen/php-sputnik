@@ -519,6 +519,9 @@ function _sp_current_request() {
     $request->get = $_GET;
     $request->post = $_POST;
     $request->method = $_SERVER['REQUEST_METHOD'];
+    if ($request->query) {
+        $request->url = substr($request->url, 0, -1 * (strlen($request->query) + 1));
+    }
     return $request;
 }
 
