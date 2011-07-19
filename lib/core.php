@@ -335,13 +335,19 @@ function sp_route_encode_params(array $params) {
  * @param string $model
  */
 function sp_model_load($module, $model) {
-    // load the model
-    sp_module_require($module, "model/{$model}.php");
-    
-    // load the backend if possible
-    $config = sp_config();
-    if (isset ($config['backends'][$module][$model])) {
-        sp_module_require($module, "model/_{$config['backends'][$module][$model]}/{$model}.php");
+    static $loaded = array ();
+    $k = "{$module}/{$model}";
+    if (!isset ($loaded[$k])) {
+        $loaded[$k] = true;
+        
+        // load the model
+        sp_module_require($module, "model/{$model}.php");
+        
+        // initialize
+        $callback = "{$module}_model_{$model}_init";
+        if (is_callable($callback)) {
+            $callback();
+        }
     }
 }
 
@@ -426,7 +432,7 @@ function sp_error_404($request) {
  * @param string $extension
  */
 function sp_extension_load($extension) {
-    sp_require("lib/sputnik/{$extension}.php");
+    sp_require(_sp_sputnik_lib_dir() . "/{$extension}.php");
 }
 
 /**
@@ -547,4 +553,12 @@ function _sp_view_include_helpers($module) {
     if (isset ($modules[$module]['view_helpers'])) {
         sp_require($modules[$module]['view_helpers']);
     }
+}
+
+/**
+ * Get the Sputnik lib directory path.
+ * @return string
+ */
+function _sp_sputnik_lib_dir() {
+    return dirname(__FILE__);
 }
