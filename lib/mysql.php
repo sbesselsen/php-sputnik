@@ -7,13 +7,18 @@ function sp_mysql_connect(array $options = array ()) {
         'host' => 'localhost',
         'user' => '',
         'pass' => '',
+        'port' => null,
         'db' => null,
     );
     
     $id = $options['id'];
     if (!isset ($conns[$id])) {
         $conns[$id] = null;
-        if ($conn = @mysql_connect($options['host'], $options['user'], $options['pass'])) {
+        $host = $options['host'];
+        if ($options['port']) {
+            $host .= ":{$options['port']}";
+        }
+        if ($conn = @mysql_connect($host, $options['user'], $options['pass'])) {
             if ($options['db']) {
                 mysql_select_db($options['db'], $conn);
             }
