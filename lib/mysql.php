@@ -114,7 +114,9 @@ function _sp_mysql_query_rewrite($q, array $params, $conn) {
             case '@':
                 return "'" . mysql_real_escape_string($v, $conn) . "'";
             case '%':
-                return (double)$v;
+                $v = number_format((double)$v, 10, '.', '');
+                $v = preg_replace('((\.[0-9])0+$)', '\\1', $v);
+                return $v;
             case '#':
                 return (int)$v;
         }
