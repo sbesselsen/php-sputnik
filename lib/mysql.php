@@ -74,10 +74,19 @@ function sp_mysql_delete_multiple($table, $where = null, array $params = array (
 }
 
 function sp_mysql_insert($table, array $insert, $upsert = true, $conn = null) {
+    return _sp_mysql_insert($table, $insert, $upsert ? 'upsert' : 'insert', $conn);
+}
+
+function sp_mysql_replace($table, array $insert, $conn = null) {
+    return _sp_mysql_insert($table, $insert, 'replace', $conn);
+}
+
+function _sp_mysql_insert($table, array $insert, $action, $conn = null) {
     if (!$insert) {
         return;
     }
-    $q = "INSERT INTO {{$table}} ";
+    $verb = $action == 'replace' ? "REPLACE" : "INSERT";
+    $q = "{$verb} INTO {{$table}} ";
     $fields = array ();
     $values = array ();
     $params = array ();
@@ -91,7 +100,7 @@ function sp_mysql_insert($table, array $insert, $upsert = true, $conn = null) {
         $sets[] = "{{$field}} = {$placeholder}";
     }
     $q .= "(" . implode(", ", $fields) . ") VALUES (" . implode(", ", $values) . ")";
-    if ($upsert) {
+    if ($action == 'upsert') {
         $q .= " ON DUPLICATE KEY UPDATE " . implode(", ", $sets);
     }
     return sp_mysql_query($q, $params, $conn);
@@ -104,7 +113,7 @@ function _sp_mysql_query_rewrite($q, array $params, $conn) {
     
     // params
     $q = preg_replace_callback('(([!@%#])([a-z0-9_\-A-Z]+))', function ($match) use ($params, $conn) {
-        $v = isset ($params[$match[2]]) ? $params[$match[2]] : '';
+        $v = array_key_exists($match[2], $params) ? $params[$match[2]] : '';
         if ($v === null) {
             return 'NULL';
         }
