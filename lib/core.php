@@ -78,6 +78,14 @@ function sp_config($reset = false) {
     if ($config === null || $reset) {
         $config_all = _sp_config_all($reset);
         $config = isset ($config_all[SP_ENV]) ? $config_all[SP_ENV] : array ();
+        if (!empty ($config['<<local']) && file_exists($path = SP_BASE . "/config/" . $config['<<local'])) {
+            // read local config
+            $data = file_get_contents($path);
+            $yaml = yaml_parse($data);
+            if (is_array($yaml)) {
+                $config = array_replace_recursive($config, $yaml);
+            }
+        }
     }
     return $config;
 }
