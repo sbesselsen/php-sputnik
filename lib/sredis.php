@@ -146,7 +146,7 @@ function sp_sredis_read_bulk_resp($r, $rem) {
     if ($length == -1) {
         return null;
     }
-    return substr(fread($r->sock, $length + 2), 0, $length);
+    return (object)array ('status' => null, 'error' => null, 'data' => substr(_sp_sredis_fread_blocks($r->sock, $length + 2), 0, $length));
 }
 
 function sp_sredis_read_multibulk_resp($r, $rem) {
@@ -167,7 +167,7 @@ function sp_sredis_read_multibulk_resp($r, $rem) {
                 if ($length == -1) {
                     $output[] = null;
                 } else {
-                    $output[] = substr(fread($r->sock, $length + 2), 0, $length);
+                    $output[] = substr(_sp_sredis_fread_blocks($r->sock, $length + 2), 0, $length);
                 }
                 break;
             default:
@@ -261,4 +261,18 @@ function _sp_sredis_connect($persistent, $host, $port, $timeout) {
         }
     }
     return $r;
+}
+
+function _sp_sredis_fread_blocks($fp, $size, $buffer_size = 8192) {
+    $buffer = array ();
+    $remaining = $size;
+    while ($remaining > 0) {
+        $block = min($remaining, $buffer_size);
+        if (!$data = fread($fp, $remaining)) {
+            break;
+        }
+        $buffer[] = $data;
+        $remaining -= strlen($data);
+    }
+    return implode("", $buffer);
 }
