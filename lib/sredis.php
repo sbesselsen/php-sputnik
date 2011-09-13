@@ -227,6 +227,9 @@ function sp_sredis_pubsub_receive($r) {
 
 /**
  * Continuously receive messages from Redis and call the callback function when one comes in.
+ * 
+ * The loop ends when the callback function returns false.
+ * 
  * @param object $r
  * @param callback $f
  */
@@ -243,17 +246,19 @@ function _sp_sredis_connect($persistent, $host, $port, $timeout) {
     if (!$conn = $f($host, $port, $errno, $errstr, $timeout)) {
         throw new RuntimeException("Connection error: {$errno}: {$errstr}");
     }
+    
+    $r = (object)array ('sock' => $conn, 'pipeline' => false);
+    
     if ($persistent && ftell($conn) > 0) {
         // move out of pub/sub mode
         $resp = sp_sredis_cmd($r, 'ping');
         if ($resp->error) {
             $resp2 = sp_sredis_cmd($r, 'unsubscribe');
             if ($resp2->error) {
-                // non-persistent connection
-                echo "nonpersistent\n";
+                // use a non-persistent connection
                 return _sp_sredis_connect(false, $host, $port, $timeout);
             }
         }
     }
-    return (object) array ('sock' => $conn, 'pipeline' => false);
+    return $r;
 }
