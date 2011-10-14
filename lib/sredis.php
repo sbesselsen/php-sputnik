@@ -5,7 +5,7 @@
  * @param int $port
  * @param int $timeout
  */
-function sp_sredis_connect($host = '127.0.0.1', $port = 6379, $timeout = 0) {
+function sp_sredis_connect($host = '127.0.0.1', $port = 6379, $timeout = null) {
     return _sp_sredis_connect(false, $host, $port, $timeout);
 }
 
@@ -15,7 +15,7 @@ function sp_sredis_connect($host = '127.0.0.1', $port = 6379, $timeout = 0) {
  * @param int $port
  * @param int $timeout
  */
-function sp_sredis_pconnect($host = '127.0.0.1', $port = 6379, $timeout = 0) {
+function sp_sredis_pconnect($host = '127.0.0.1', $port = 6379, $timeout = null) {
     return _sp_sredis_connect(true, $host, $port, $timeout);
 }
 
@@ -243,6 +243,9 @@ function sp_sredis_pubsub_receive_all($r, $f) {
 
 function _sp_sredis_connect($persistent, $host, $port, $timeout) {
     $f = $persistent ? 'pfsockopen' : 'fsockopen';
+    if ($timeout === null) {
+        $timeout = 2;
+    }
     if (!$conn = $f($host, $port, $errno, $errstr, $timeout)) {
         throw new RuntimeException("Connection error: {$errno}: {$errstr}");
     }
