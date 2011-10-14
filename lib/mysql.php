@@ -81,27 +81,60 @@ function sp_mysql_replace($table, array $insert, $conn = null) {
     return _sp_mysql_insert($table, $insert, 'replace', $conn);
 }
 
+function sp_mysql_insert_multiple($table, array $fields, array $values, $on_duplicate_key = null, $conn = null) {
+    return _sp_mysql_insert_multiple($table, $fields, $values, 'insert', $on_duplicate_key, $conn);
+}
+
+function sp_mysql_replace_multiple($table, array $fields, array $values, $conn = null) {
+    return _sp_mysql_insert_multiple($table, $fields, $values, 'replace', null, $conn);
+}
+
 function _sp_mysql_insert($table, array $insert, $action, $conn = null) {
-    if (!$insert) {
+    $fields = array_keys($insert);
+    $values = array (array_values($insert));
+    $on_duplicate_key = null;
+    if ($action == 'upsert') {
+        $sets = array ();
+        foreach ($insert as $k => $v) {
+            $field = substr($k, 1);
+            $sets[] = "{{$field}} = VALUES({{$field}})";
+        }
+        $on_duplicate_key = 'UPDATE ' . implode(', ', $sets);
+    }
+    return _sp_mysql_insert_multiple($table, $fields, $values, $action == 'replace' ? 'replace' : 'insert', $on_duplicate_key, $conn);
+}
+
+function _sp_mysql_insert_multiple($table, array $fields, array $values, $action, $on_duplicate_key = null, $conn = null) {
+    if (!$fields || !$values) {
         return;
     }
     $verb = $action == 'replace' ? "REPLACE" : "INSERT";
     $q = "{$verb} INTO {{$table}} ";
-    $fields = array ();
-    $values = array ();
-    $params = array ();
-    $sets = array ();
-    foreach ($insert as $k => $v) {
-        $field = substr($k, 1);
-        $placeholder = substr($k, 0, 1) . $field;
-        $params[$field] = $v;
-        $fields[] = "{{$field}}";
-        $values[] = $placeholder;
-        $sets[] = "{{$field}} = {$placeholder}";
+    $q_fields = array ();
+    $types = array ();
+    $i = 0;
+    foreach ($fields as $field) {
+        $types[++$i] = substr($field, 0, 1);
+        $q_fields[] = "{" . substr($field, 1) . "}";
     }
-    $q .= "(" . implode(", ", $fields) . ") VALUES (" . implode(", ", $values) . ")";
-    if ($action == 'upsert') {
-        $q .= " ON DUPLICATE KEY UPDATE " . implode(", ", $sets);
+    $q .= "(" . implode(', ', $q_fields) . ") VALUES ";
+    $q_sets = array ();
+    $params = array ();
+    $j = 0;
+    foreach ($values as $row) {
+        $j++;
+        $i = 0;
+        $q_values = array ();
+        foreach ($row as $v) {
+            $i++;
+            $q_values[] = $types[$i] . "value{$j}_{$i}";
+            $params["value{$j}_{$i}"] = $v;
+        }
+        $q_sets[] = "(" . implode(', ', $q_values) . ")";
+    }
+    $q .= implode(', ', $q_sets);
+    if ($on_duplicate_key !== null) {
+        $q .= " ON DUPLICATE KEY " . $on_duplicate_key;
     }
     return sp_mysql_query($q, $params, $conn);
 }
@@ -112,22 +145,35 @@ function _sp_mysql_query_rewrite($q, array $params, $conn) {
     $q = preg_replace('(\{([^}\.]*)\})', "`\\1`", $q);
     
     // params
-    $q = preg_replace_callback('(([!@%#])([a-z0-9_\-A-Z]+))', function ($match) use ($params, $conn) {
+    $q = preg_replace_callback('(([!@%#])([a-z0-9_\-A-Z]+)(\[\])?)', function ($match) use ($params, $conn) {
         $v = array_key_exists($match[2], $params) ? $params[$match[2]] : '';
         if ($v === null) {
             return 'NULL';
         }
-        switch ($match[1]) {
-            case '!':
-                return '(' . $v . ')';
-            case '@':
-                return "'" . mysql_real_escape_string($v, $conn) . "'";
-            case '%':
-                $v = number_format((double)$v, 10, '.', '');
-                $v = preg_replace('((\.[0-9])0+$)', '\\1', $v);
-                return $v;
-            case '#':
-                return (int)$v;
+        $vs = is_array($v) ? $v : array ($v);
+        $converted = array ();
+        foreach ($vs as $v) {
+            switch ($match[1]) {
+                case '!':
+                    $converted[] = '(' . $v . ')';
+                    break;
+                case '@':
+                    $converted[] = "'" . mysql_real_escape_string($v, $conn) . "'";
+                    break;
+                case '%':
+                    $v = number_format((double)$v, 10, '.', '');
+                    $v = preg_replace('((\.[0-9])0+$)', '\\1', $v);
+                    $converted[] = $v;
+                    break;
+                case '#':
+                    $converted[] = (int)$v;
+                    break;
+            }
+        }
+        if (!empty ($match[3])) {
+            return implode(', ', $converted);
+        } else {
+            return $converted[0];
         }
     }, $q);
     
