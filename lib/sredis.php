@@ -252,19 +252,25 @@ function _sp_sredis_connect($persistent, $host, $port, $timeout) {
     }
     
     $r = (object)array ('sock' => $conn, 'pipeline' => false);
-    
+        
     if ($persistent && ftell($conn) > 0) {
-        // move out of pub/sub mode
-        $resp = sp_sredis_cmd($r, 'ping');
-        if ($resp->error) {
-            $resp2 = sp_sredis_cmd($r, 'unsubscribe');
-            if ($resp2->error) {
-                // use a non-persistent connection
-                return _sp_sredis_connect(false, $host, $port, $timeout);
-            }
+        // check if the connection is in an OK state
+        if (_sp_sredis_connection_ok($r)) {
+            // if so, discard any transactions that may be running
+            sp_sredis_cmd($r, 'discard');
+        } else {
+            // something is wrong; open a new connection
+            fclose($conn);
+            return _sp_sredis_connect(true, $host, $port, $timeout);
         }
     }
     return $r;
+}
+
+function _sp_sredis_connection_ok($r) {
+    $uniq_id = uniqid('redis-state-check');
+    $resp = sp_sredis_cmd($r, 'echo', $uniq_id);
+    return $resp && !$resp->error && $resp->data == $uniq_id;
 }
 
 function _sp_sredis_fread_blocks($fp, $size, $buffer_size = 8192) {
