@@ -84,6 +84,7 @@ function sp_sredis_pipeline_start($r) {
  */
 function sp_sredis_pipeline_end($r) {
     $r->pipeline = false;
+    $output = array ();
     while ($r->pipelined-- > 0) {
         $output[] = sp_sredis_read_resp($r);
     }
@@ -246,7 +247,7 @@ function _sp_sredis_connect($persistent, $host, $port, $timeout) {
     if ($timeout === null) {
         $timeout = 2;
     }
-    if (!$conn = $f($host, $port, $errno, $errstr, $timeout)) {
+    if (!$conn = @$f($host, $port, $errno, $errstr, $timeout)) {
         throw new RuntimeException("Connection error: {$errno}: {$errstr}");
     }
     
