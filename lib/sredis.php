@@ -100,7 +100,6 @@ function sp_sredis_pipeline_end_clear($r) {
     while ($r->pipelined-- > 0) {
         sp_sredis_read_resp($r);
     }
-    return $output;
 }
 
 function _sp_sredis_serialize_cmd(array $cmd) {
