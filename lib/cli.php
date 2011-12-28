@@ -13,6 +13,7 @@ function sp_cli_run() {
     $request->post = array ();
     $request->method = 'GET';
     $request->cli = true;
+    $request->args = array_slice($_SERVER['argv'], 2);
     
     return sp_run_request($request);
 }
