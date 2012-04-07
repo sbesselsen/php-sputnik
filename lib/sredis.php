@@ -241,6 +241,25 @@ function sp_sredis_pubsub_receive_all($r, $f) {
     }
 }
 
+/**
+ * Receive $n messages from Redis and call the callback function when one comes in.
+ * 
+ * The loop ends when the callback function returns false.
+ * 
+ * @param object $r
+ * @param callback $f
+ */
+function sp_sredis_pubsub_receive_n($r, $n, $f) {
+    while ($msg = sp_sredis_pubsub_receive($r)) {
+        if ($f($msg) === false) {
+            break;
+        }
+        if (--$n == 0) {
+            break;
+        }
+    }
+}
+
 function _sp_sredis_connect($persistent, $host, $port, $timeout) {
     $f = $persistent ? 'pfsockopen' : 'fsockopen';
     if ($timeout === null) {
