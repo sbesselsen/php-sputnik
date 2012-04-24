@@ -38,6 +38,16 @@ function sp_mysql_query($q, array $params = array (), $conn = null) {
     return @mysql_query($qr, $conn);
 }
 
+function sp_mysql_unbuffered_query($q, array $params = array (), $conn = null) {
+    if (!$conn) {
+        if (!$conn = sp_mysql_connect()) {
+            return null;
+        }
+    }
+    $qr = _sp_mysql_query_rewrite($q, $params, $conn);
+    return @mysql_unbuffered_query($qr, $conn);
+}
+
 function sp_mysql_update($table, array $update, $where = null, array $params = array (), $conn = null) {
     if (!$update) {
         return;
